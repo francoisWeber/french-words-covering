@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
 import streamlit_shortcuts as ss
+from pathlib import Path
 
 # Constants
-DATA_PATH = "/Users/francois.weber/perso/tmp/dico-fr.parquet"
+DATA_PATH = Path(__file__).parent.parent.parent / "dico-fr.parquet"
 
 def load_and_sample_words():
     """Load the parquet file and sample N_WORDS words."""

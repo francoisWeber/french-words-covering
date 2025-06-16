@@ -9,6 +9,7 @@ DATA_PATH = Path(__file__).parent.parent.parent / "dico-fr.parquet"
 def load_and_sample_words():
     """Load the parquet file and sample N_WORDS words."""
     df = pd.read_parquet(DATA_PATH)
+    df = df[~df.optional_category]
     return df.sample(frac=1).reset_index(drop=True)
 
 def initialize_session_state():
@@ -37,21 +38,10 @@ def main():
     Elle permet de sélectionner les mots que vous connaissez et ceux que vous ne connaissez pas.
     """)
     
-    # Filter option for optional categories
-    st.markdown("### Options de filtrage")
-    st.session_state.keep_optional = st.checkbox("Conserver les catégories optionnelles", value=st.session_state.keep_optional)
-
     
     # Display current word
     if st.session_state.current_index < len(st.session_state.words_df):
-        found_next_word = False
-        increment = 1
-        while not found_next_word:
-            current_word = st.session_state.words_df.iloc[st.session_state.current_index + increment]
-            if st.session_state.keep_optional or not current_word.optional_category:
-                found_next_word = True
-            else:
-                increment += 1
+        current_word = st.session_state.words_df.iloc[st.session_state.current_index + 1]
         
         # Word card
         st.markdown("---")
@@ -73,10 +63,7 @@ def main():
                 st.rerun()
         
         # Keyboard shortcuts
-        st.markdown("---")
-        st.markdown("**Raccourcis clavier:**")
-        st.markdown("- ⬅️ si *inconnu*")
-        st.markdown("- ➡️ si *connu*")
+        st.markdown("**Raccourcis clavier:** ⬅️ si *inconnu* - ➡️ si *connu*" )
         
     if n_tot_words:=(len(st.session_state.known_words) + len(st.session_state.unknown_words)) > 0:
         # Show results
@@ -84,7 +71,12 @@ def main():
         n_unknown_words = len(st.session_state.unknown_words)
         n_tot_words = n_known_words + n_unknown_words
         
-        st.metric(label="Fraction connue", value=f"{n_known_words} / {n_tot_words}")
+        known_frac = n_known_words / n_tot_words
+        cols = st.columns(2)
+        with cols[0]:
+            st.metric(label="Fraction connue", value=f"{n_known_words} / {n_tot_words}")
+        with cols[1]:
+            st.metric(label="Estimation du nombre de mots connus", value=f"{int(known_frac * len(st.session_state.words_df))}")
         
         st.success(f"🎉 Vous avez terminé avec {n_known_words} mots connus et {n_unknown_words} mots inconnus sur {n_tot_words} mots.")
         

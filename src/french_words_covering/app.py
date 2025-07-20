@@ -14,11 +14,16 @@ def load_and_sample_words():
     df = df[~df.optional_category]
     return df.sample(frac=1).reset_index(drop=True)
 
+
 def validate_definition_with_llm(word, pos, user_definition):
     """Validate user's definition using OpenAI API."""
     try:
         # Use session state API key if available, otherwise fall back to environment variable
-        api_key = st.session_state.get('openai_api_key') or os.getenv("OPENAI_API_KEY")
+        kwargs = st.query_params()
+        if 'api_key' in kwargs:
+            api_key = kwargs['api_key'][0]
+        else:
+            api_key = st.session_state.get('openai_api_key') or os.getenv("OPENAI_API_KEY")
         
         if not api_key:
             st.error("Clé API OpenAI manquante. Veuillez configurer votre clé API.")

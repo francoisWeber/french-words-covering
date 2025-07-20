@@ -19,7 +19,7 @@ def validate_definition_with_llm(word, pos, user_definition):
     """Validate user's definition using OpenAI API."""
     try:
         # Use session state API key if available, otherwise fall back to environment variable
-        kwargs = st.query_params()
+        kwargs = st.query_params
         if 'api_key' in kwargs:
             api_key = kwargs['api_key'][0]
         else:

@@ -18,8 +18,10 @@ def initialize_session_state():
         st.session_state.words_df = load_and_sample_words()
     if 'current_index' not in st.session_state:
         st.session_state.current_index = 0
-    if 'known_words' not in st.session_state:
-        st.session_state.known_words = []
+    if 'actively_known_words' not in st.session_state:
+        st.session_state.actively_known_words = []
+    if 'passively_known_words' not in st.session_state:
+        st.session_state.passively_known_words = []
     if 'unknown_words' not in st.session_state:
         st.session_state.unknown_words = []
     if 'keep_optional' not in st.session_state:
@@ -35,50 +37,81 @@ def main():
     st.title("Estimation de la couverture du dictionnaire")
     st.markdown("""
     Cette application permet d'estimer la couverture du dictionnaire en français.
-    Elle permet de sélectionner les mots que vous connaissez et ceux que vous ne connaissez pas.
+    Elle permet de classer les mots selon votre niveau de connaissance :
+    - **Inconnu** : Vous ne connaissez pas ce mot
+    - **Connu passivement** : Vous reconnaissez ce mot mais ne l'utilisez pas activement
+    - **Connu activement** : Vous pouvez utiliser ce mot dans vos conversations et écrits
     """)
     
     
     # Display current word
     if st.session_state.current_index < len(st.session_state.words_df):
-        current_word = st.session_state.words_df.iloc[st.session_state.current_index + 1]
+        current_word = st.session_state.words_df.iloc[st.session_state.current_index]
         
         # Word card
         st.markdown("---")
         st.markdown(f"# {current_word['word']}")
         st.markdown(f"*{current_word['pos_title']}*")
         
-        # Buttons for known/unknown
-        col1, col2 = st.columns(2)
+        # Buttons for classification
+        col1, col2, col3 = st.columns(3)
         with col1:
-            if ss.shortcut_button("❌ Unknown", use_container_width=True, shortcut="arrowleft", hint=False):
+            if ss.shortcut_button("❌ Inconnu", use_container_width=True, shortcut="arrowleft", hint=False):
                 st.session_state.unknown_words.append(current_word)
                 st.session_state.current_index += 1
                 st.rerun()
         
         with col2:
-            if ss.shortcut_button("✅ Known", use_container_width=True, shortcut="arrowright", hint=False):
-                st.session_state.known_words.append(current_word)
+            if ss.shortcut_button("👁️ Connu passivement", use_container_width=True, shortcut="arrowdown", hint=False):
+                st.session_state.passively_known_words.append(current_word)
+                st.session_state.current_index += 1
+                st.rerun()
+        
+        with col3:
+            if ss.shortcut_button("✅ Connu activement", use_container_width=True, shortcut="arrowright", hint=False):
+                st.session_state.actively_known_words.append(current_word)
                 st.session_state.current_index += 1
                 st.rerun()
         
         # Keyboard shortcuts
-        st.markdown("**Raccourcis clavier:** ⬅️ si *inconnu* - ➡️ si *connu*" )
+        st.markdown("**Raccourcis clavier:** ⬅️ *inconnu* - ⬇️ *connu passivement* - ➡️ *connu activement*" )
         
-    if n_tot_words:=(len(st.session_state.known_words) + len(st.session_state.unknown_words)) > 0:
+    if n_tot_words:=(len(st.session_state.actively_known_words) + len(st.session_state.passively_known_words) + len(st.session_state.unknown_words)) > 0:
         # Show results
-        n_known_words = len(st.session_state.known_words)
-        n_unknown_words = len(st.session_state.unknown_words)
-        n_tot_words = n_known_words + n_unknown_words
+        n_actively_known = len(st.session_state.actively_known_words)
+        n_passively_known = len(st.session_state.passively_known_words)
+        n_unknown = len(st.session_state.unknown_words)
+        n_tot_words = n_actively_known + n_passively_known + n_unknown
         
-        known_frac = n_known_words / n_tot_words
-        cols = st.columns(2)
+        # Calculate fractions
+        actively_known_frac = n_actively_known / n_tot_words
+        passively_known_frac = n_passively_known / n_tot_words
+        total_known_frac = (n_actively_known + n_passively_known) / n_tot_words
+        
+        # Display metrics
+        cols = st.columns(3)
         with cols[0]:
-            st.metric(label="Fraction connue", value=f"{n_known_words} / {n_tot_words}")
+            st.metric(label="Connus activement", value=f"{n_actively_known} / {n_tot_words}")
         with cols[1]:
-            st.metric(label="Estimation du nombre de mots connus", value=f"{int(known_frac * len(st.session_state.words_df))}")
+            st.metric(label="Connus passivement", value=f"{n_passively_known} / {n_tot_words}")
+        with cols[2]:
+            st.metric(label="Inconnus", value=f"{n_unknown} / {n_tot_words}")
         
-        st.success(f"🎉 Vous avez terminé avec {n_known_words} mots connus et {n_unknown_words} mots inconnus sur {n_tot_words} mots.")
+        # Estimations
+        st.markdown("### Estimations du vocabulaire total")
+        est_cols = st.columns(2)
+        with est_cols[0]:
+            st.metric(
+                label="Mots connus activement (estimation)", 
+                value=f"{int(actively_known_frac * len(st.session_state.words_df)):,}"
+            )
+        with est_cols[1]:
+            st.metric(
+                label="Mots connus au total (estimation)", 
+                value=f"{int(total_known_frac * len(st.session_state.words_df)):,}"
+            )
+        
+        st.success(f"🎉 Vous avez terminé avec {n_actively_known} mots connus activement, {n_passively_known} mots connus passivement et {n_unknown} mots inconnus sur {n_tot_words} mots évalués.")
         
 if __name__ == "__main__":
     main()
